@@ -28,6 +28,7 @@ logging.basicConfig(
 )
 
 user_data = {}
+all_users = set()
 SAVED_FILE_ID = None
 ADMIN_ID = None
 
@@ -39,6 +40,7 @@ def is_access_valid(user_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global ADMIN_ID
     user_id = update.effective_user.id
+    all_users.add(user_id)
     
     if ADMIN_ID is None:
         ADMIN_ID = user_id
@@ -79,6 +81,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    all_users.add(user_id)
 
     if user_id not in user_data:
         user_data[user_id] = {"yt_verified": False, "fb_verified": False, "access_until": 0}
@@ -114,6 +117,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    all_users.add(user_id)
     state = user_data.get(user_id, {}).get("expecting", None)
 
     if not state:
@@ -152,6 +156,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global SAVED_FILE_ID, ADMIN_ID
     user_id = update.effective_user.id
+    all_users.add(user_id)
 
     if ADMIN_ID is None:
         ADMIN_ID = user_id
@@ -162,6 +167,36 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("⚠️ ফাইল আপলোড করার এক্সেস কেবল অ্যাডমিনের রয়েছে।")
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global ADMIN_ID
+    user_id = update.effective_user.id
+    if user_id == ADMIN_ID:
+        voice_id = update.message.voice.file_id
+        sent_count = 0
+        for uid in all_users:
+            if uid != ADMIN_ID:
+                try:
+                    await context.bot.send_voice(chat_id=uid, voice=voice_id)
+                    sent_count += 1
+                except Exception:
+                    pass
+        await update.message.reply_text(f"📢 ভয়েস মেসেজটি {sent_count} জন ইউজারের কাছে সফলভাবে ব্রডকাস্ট করা হয়েছে।")
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global ADMIN_ID
+    user_id = update.effective_user.id
+    if user_id == ADMIN_ID:
+        msg_text = update.message.text
+        sent_count = 0
+        for uid in all_users:
+            if uid != ADMIN_ID:
+                try:
+                    await context.bot.send_message(chat_id=uid, text=msg_text)
+                    sent_count += 1
+                except Exception:
+                    pass
+        await update.message.reply_text(f"📢 মেসেজটি {sent_count} জন ইউজারের কাছে পাঠানো হয়েছে।")
+
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -169,6 +204,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     print("🤖 Bot is running...")
     app.run_polling()
