@@ -28,10 +28,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+# আপনার নির্দিষ্ট টেলিগ্রাম আইডি (অ্যাডমিন পারমিশন শতভাগ ফিক্সড)
+ADMIN_ID = 7785579547  
+
 user_data = {}
 all_users = set()
 SAVED_FILE_ID = None
-ADMIN_ID = None  
 
 async def send_voice_text(context, chat_id, text):
     try:
@@ -70,12 +72,9 @@ async def check_telegram_membership(context: ContextTypes.DEFAULT_TYPE, user_id:
     return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global ADMIN_ID, SAVED_FILE_ID
+    global SAVED_FILE_ID
     user_id = update.effective_user.id
     all_users.add(user_id)
-    
-    if ADMIN_ID is None:
-        ADMIN_ID = user_id
 
     if is_access_valid(user_id):
         remaining = int((user_data[user_id]["access_until"] - time.time()) / 3600)
@@ -97,31 +96,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data[user_id] = {
             "yt_verified": False,
             "fb_verified": False,
+            "tt_verified": False,
             "access_until": 0,
             "expecting": None,
             "request_time": 0
         }
 
+    # আপনার পছন্দমতো স্মার্ট বাটন লেআউট
     keyboard = [
+        [InlineKeyboardButton("📸 VERIFY FB", callback_data="verify_fb")],
         [InlineKeyboardButton("📘 FOLLOW ON FB ↗️", url=FACEBOOK_LINK)],
-        [InlineKeyboardButton("✈️ JOIN TELEGRAM ↗️", url=TELEGRAM_LINK)],
+        [InlineKeyboardButton("📸 VERIFY YT", callback_data="verify_yt")],
         [InlineKeyboardButton("📺 SUBSCRIBE YT ↗️", url=YOUTUBE_LINK)],
+        [InlineKeyboardButton("📸 VERIFY TIKTOK", callback_data="verify_tt")],
         [InlineKeyboardButton("🎵 TIKTOK PAGE ↗️", url=TIKTOK_LINK)],
-        [
-            InlineKeyboardButton("📸 VERIFY FB", callback_data="verify_fb"),
-            InlineKeyboardButton("📸 VERIFY YT", callback_data="verify_yt"),
-        ],
+        [InlineKeyboardButton("✈️ JOIN TELEGRAM ↗️", url=TELEGRAM_LINK)],
         [InlineKeyboardButton("✅ VERIFY NOW", callback_data="verify_now")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     caption_text = (
-        "🔒 **স্মার্ট ভেরিফিকেশন সিস্টেম**\n\n"
-        "বট ব্যবহার করতে নিচের কাজগুলো সম্পন্ন করুন:\n"
-        "১. ফেসবুক পেজ ও ইউটিউব চ্যানেল সাবস্ক্রাইব/ফলো করে স্ক্রিনশট দিন।\n"
-        "২. ব্র্যান্ড নাম ও প্রুফ কঠোরভাবে যাচাই করা হবে।\n"
-        "৩. ১০ মিনিটের মধ্যে প্রুফ সাবমিট করতে হবে।\n"
-        "৪. কাজ শেষ হলে **VERIFY NOW** বাটনে ক্লিক করুন।"
+        "🔒 **স্মার্ট অল-ইন-ওয়ান ভেরিফিকেশন সিস্টেম**\n\n"
+        "নিয়মাবলী:\n"
+        "১. প্রথমে **VERIFY** বাটনে চাপ দিন (১০ মিনিটের টাইমার শুরু হবে)।\n"
+        "২. এরপর নিচের লিংকে গিয়ে চ্যানেল/পেজ ফলো করে স্ক্রিনশট দিন।\n"
+        "৩. প্রোফাইল নাম ও ফলো প্রুফ কড়াভাবে যাচাই করা হবে।\n"
+        "৪. সব কাজ শেষে **VERIFY NOW** বাটনে ক্লিক করুন।"
     )
 
     await update.message.reply_text(text=caption_text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -137,6 +137,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data[user_id] = {
             "yt_verified": False,
             "fb_verified": False,
+            "tt_verified": False,
             "access_until": 0,
             "expecting": None,
             "request_time": 0
@@ -145,18 +146,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "verify_fb":
         user_data[user_id]["expecting"] = "fb"
         user_data[user_id]["request_time"] = time.time()
-        msg = "আমাদের ফেসবুক পেজটি ফলো করে স্ক্রিনশট পাঠান। আপনার সময় ১০ মিনিট।"
+        msg = "ফেসবুক ভেরিফিকেশন শুরু হয়েছে! নিচের লিংকে গিয়ে ফলো করুন এবং ১০ মিনিটের মধ্যে স্ক্রিনশট পাঠান।"
         await send_voice_text(context, user_id, msg)
 
     elif query.data == "verify_yt":
         user_data[user_id]["expecting"] = "yt"
         user_data[user_id]["request_time"] = time.time()
-        msg = "আমাদের ইউটিউব চ্যানেলটি সাবস্ক্রাইব করে স্ক্রিনশট পাঠান। আপনার সময় ১০ মিনিট।"
+        msg = "ইউটিউব ভেরিফিকেশন শুরু হয়েছে! নিচের লিংকে গিয়ে সাবস্ক্রাইব করুন এবং ১০ মিনিটের মধ্যে স্ক্রিনশট পাঠান।"
+        await send_voice_text(context, user_id, msg)
+
+    elif query.data == "verify_tt":
+        user_data[user_id]["expecting"] = "tt"
+        user_data[user_id]["request_time"] = time.time()
+        msg = "টিকটক ভেরিফিকেশন শুরু হয়েছে! নিচের লিংকে গিয়ে ফলো করুন এবং ১০ মিনিটের মধ্যে স্ক্রিনশট পাঠান।"
         await send_voice_text(context, user_id, msg)
 
     elif query.data == "verify_now":
         yt_status = user_data[user_id].get("yt_verified", False)
         fb_status = user_data[user_id].get("fb_verified", False)
+        tt_status = user_data[user_id].get("tt_verified", False)
         
         is_tg_member = await check_telegram_membership(context, user_id)
         
@@ -165,9 +173,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_voice_text(context, user_id, msg)
             return
 
-        if yt_status and fb_status:
+        if yt_status and fb_status and tt_status:
             user_data[user_id]["access_until"] = time.time() + ACCESS_DURATION
-            msg = "অভিনন্দন! আপনার সব ভেরিফিকেশন সফল হয়েছে। বট ২৪ ঘণ্টার জন্য আনলক করা হলো।"
+            msg = "অভিনন্দন! আপনার ফেসবুক, ইউটিউব এবং টিকটক সব ভেরিফিকেশন সফল হয়েছে। বট আনলক করা হলো।"
             await send_voice_text(context, user_id, msg)
             
             if SAVED_FILE_ID:
@@ -176,15 +184,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logging.error(f"Error sending file on verify: {e}")
         else:
-            missing_text = ""
-            if not fb_status and not yt_status:
-                missing_text = "আপনার ফেসবুক এবং ইউটিউব দুটি ভেরিফিকেশনই বাকি আছে।"
-            elif not fb_status:
-                missing_text = "আপনার ফেসবুক ফলো ভেরিফিকেশন বাকি আছে।"
-            elif not yt_status:
-                missing_text = "আপনার ইউটিউব সাবস্ক্রাইব ভেরিফিকেশন বাকি আছে।"
+            missing = []
+            if not fb_status: missing.append("ফেসবুক")
+            if not yt_status: missing.append("ইউটিউব")
+            if not tt_status: missing.append("টিকটক")
             
-            await send_voice_text(context, user_id, f"ভেরিফিকেশন ব্যর্থ হয়েছে! {missing_text}")
+            missing_text = " এবং ".join(missing)
+            await send_voice_text(context, user_id, f"ভেরিফিকেশন অসম্পূর্ণ! আপনার {missing_text} ভেরিফিকেশন বাকি আছে।")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -239,6 +245,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg = "ভেরিফিকেশন ব্যর্থ! স্ক্রিনশটে সঠিক ফেসবুক পেজ এবং ফলো প্রুফ পাওয়া যায়নি।"
                 await send_voice_text(context, user_id, msg)
 
+        elif state == "tt":
+            tt_keywords = ["khlomni7", "omni7", "aman", "tiktok"]
+            has_tt_identity = any(k in text for k in tt_keywords)
+            tt_proof = ("following" in text) or ("followed" in text) or ("friends" in text) or ("ফলো করছেন" in text) or ("মেসেজ" in text)
+            
+            if has_tt_identity and tt_proof:
+                user_data[user_id]["tt_verified"] = True
+                user_data[user_id]["expecting"] = None
+                msg = "টিকটক ভেরিফিকেশন সফল হয়েছে!"
+                await send_voice_text(context, user_id, msg)
+            else:
+                msg = "ভেরিফিকেশন ব্যর্থ! স্ক্রিনশটে সঠিক টিকটক প্রোফাইল এবং ফলো প্রুফ পাওয়া যায়নি।"
+                await send_voice_text(context, user_id, msg)
+
     except Exception as e:
         msg = "ছবিটি পরিষ্কার নয়। দয়া করে আবার স্পষ্ট স্ক্রিনশট পাঠান।"
         await send_voice_text(context, user_id, msg)
@@ -247,26 +267,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(file_path)
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global SAVED_FILE_ID, ADMIN_ID
+    global SAVED_FILE_ID
     user_id = update.effective_user.id
     all_users.add(user_id)
 
-    if ADMIN_ID is None:
-        ADMIN_ID = user_id
-
     if user_id == ADMIN_ID:
         SAVED_FILE_ID = update.message.document.file_id
-        await update.message.reply_text("✅ ফাইলটি সফলভাবে ড্রাইভে সেভ করা হয়েছে!")
+        await update.message.reply_text("✅ ফাইলটি সফলভাবে ড্রাইভে সেভ করা হয়েছে! এখন সকল ইউজার আনলক করলে এই ফাইলটি পাবে।")
     else:
         await update.message.reply_text("⚠️ ফাইল আপলোড করার এক্সেস কেবল অ্যাডমিনের রয়েছে।")
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global ADMIN_ID
     user_id = update.effective_user.id
     all_users.add(user_id)
-    
-    if ADMIN_ID is None:
-        ADMIN_ID = user_id
 
     if user_id == ADMIN_ID:
         voice_id = update.message.voice.file_id
@@ -281,12 +294,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"📢 ভয়েস মেসেজটি {sent_count} জনের কাছে পাঠানো হয়েছে।")
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global ADMIN_ID
     user_id = update.effective_user.id
     all_users.add(user_id)
-
-    if ADMIN_ID is None:
-        ADMIN_ID = user_id
 
     if user_id == ADMIN_ID:
         msg_text = update.message.text
